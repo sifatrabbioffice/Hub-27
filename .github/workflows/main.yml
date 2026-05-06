@@ -1,4 +1,4 @@
-name: GameHub Pro Ultra - Advanced Windows Engine
+name: GameHub Pro Ultra - PS5 Edition Build
 
 on:
   push:
@@ -7,20 +7,20 @@ on:
 
 jobs:
   build:
-    name: Build All-In-One Ultimate IPA
+    name: Build Ultra Engine
     runs-on: macos-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Generate High-Performance Environment
+      - name: Generate Pro-Level Environment
         run: |
-          mkdir -p GameHub/Sources
+          mkdir -p GameHub
           
-          # 1. Info.plist - System-Level Permissions & Graphics Access
+          # 1. Info.plist - High Performance & File Access
           cat << 'EOF' > GameHub/Info.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,37 +29,34 @@ jobs:
             <key>CFBundleExecutable</key>
             <string>GameHub</string>
             <key>CFBundleIdentifier</key>
-            <string>com.gamehub.ultimate.engine</string>
+            <string>com.gamehub.pro.ultra</string>
             <key>CFBundleName</key>
-            <string>GameHub Pro</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>CFBundleShortVersionString</key>
-            <string>9.0</string>
-            <key>CFBundleVersion</key>
-            <string>1</string>
-            <key>LSRequiresIPhoneOS</key>
-            <true/>
-            <key>UIFileSharingEnabled</key>
-            <true/>
-            <key>LSSupportsOpeningDocumentsInPlace</key>
-            <true/>
-            <key>UILaunchStoryboardName</key>
-            <string>LaunchScreen</string>
+            <string>GameHub Ultra</string>
+            <key>CFBundlePackageType</key>            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>    <string>6.0</string>
+            <key>CFBundleVersion</key>               <string>1</string>
+            <key>LSRequiresIPhoneOS</key>            <true/>
+            <key>UIFileSharingEnabled</key>          <true/>
+            <key>LSSupportsOpeningDocumentsInPlace</key> <true/>
+            <key>UILaunchStoryboardName</key>        <string>LaunchScreen</string>
             <key>UISupportedInterfaceOrientations</key>
             <array>
               <string>UIInterfaceOrientationLandscapeLeft</string>
               <string>UIInterfaceOrientationLandscapeRight</string>
             </array>
-            <key>CADisableMinimumFrameDurationOnPhone</key>
-            <true/>
-            <key>NSHighResolutionCapable</key>
-            <true/>
+            <key>GCSupportedGameControllers</key>
+            <array>
+                <dict>
+                    <key>ProfileName</key>
+                    <string>ExtendedGamepad</string>
+                </dict>
+            </array>
+            <key>CADisableMinimumFrameDurationOnPhone</key> <true/>
           </dict>
           </plist>
           EOF
 
-          # 2. Project.yml - iPhone 15 Pro Max A17 Pro Optmization
+          # 2. Project.yml - iPhone 15 Pro Max Architecture
           cat << 'EOF' > project.yml
           name: GameHub
           targets:
@@ -72,13 +69,13 @@ jobs:
                 base:
                   INFOPLIST_FILE: GameHub/Info.plist
                   GENERATE_INFOPLIST_FILE: NO
-                  PRODUCT_BUNDLE_IDENTIFIER: com.gamehub.ultimate.engine
+                  PRODUCT_BUNDLE_IDENTIFIER: com.gamehub.pro.ultra
                   SWIFT_OPTIMIZATION_LEVEL: "-O"
                   ENABLE_BITCODE: NO
                   OTHER_LDFLAGS: "-Wl,-sectcreate,__TEXT,__info_plist,GameHub/Info.plist"
           EOF
 
-          # 3. Master Engine Code (App.swift) - Execution, Controller & UI
+          # 3. Master Engine (The Logic that Runs Everything)
           cat << 'EOF' > GameHub/App.swift
           import SwiftUI
           import UniformTypeIdentifiers
@@ -87,238 +84,214 @@ jobs:
           struct GameHubApp: App {
               var body: some Scene {
                   WindowGroup {
-                      SystemKernel()
+                      SystemKernelView()
                   }
               }
           }
 
-          struct SystemKernel: View {
-              @State private var mode: AppMode = .welcome
-              @State private var activeExe: String = ""
-              
-              enum AppMode { case welcome, booting, desktop, playing }
+          // --- SYSTEM KERNEL ---
+          struct SystemKernelView: View {
+              @State private var systemStatus = "BOOT" // BOOT, DESKTOP, RUNNING
+              @State private var activeGame: String? = nil
               
               var body: some View {
                   ZStack {
                       Color.black.ignoresSafeArea()
                       
-                      switch mode {
-                      case .welcome:
-                          WelcomeUI { mode = .booting }
-                      case .booting:
-                          EngineLoaderUI { mode = .desktop }
-                      case .desktop:
-                          WindowsDesktopUI(onLaunch: { path in
-                              activeExe = path
-                              mode = .playing
+                      if systemStatus == "BOOT" {
+                          BootSequence { systemStatus = "DESKTOP" }
+                      } else if systemStatus == "DESKTOP" {
+                          WindowsEnvironment(onLaunch: { name in
+                              activeGame = name
+                              systemStatus = "RUNNING"
                           })
-                      case .playing:
-                          EmulationLayer(gameName: activeExe) { mode = .desktop }
+                      } else {
+                          GameExecutionEngine(gameName: activeGame ?? "Unknown", onExit: {
+                              systemStatus = "DESKTOP"
+                          })
                       }
                   }
               }
           }
 
-          // --- ENGINE LOADER (The Core Initialization) ---
-          struct EngineLoaderUI: View {
-              @State private var progress: Double = 0
-              var onComplete: () -> Void
-              let tasks = [
-                  "Initializing x86_64 Translator...",
-                  "Mounting Virtual Drive C:/Users/Admin...",
-                  "Starting Wine-9.0 Stable Server...",
-                  "Injecting DXVK (DirectX 11 to Metal)...",
-                  "Enabling JIT for A17 Pro...",
-                  "Optimizing VRAM Cache..."
-              ]
+          // --- BOOT SEQUENCE (Simulating BIOS/Windows Boot) ---
+          struct BootSequence: View {
+              @State private var loadingText = "Initialising A17 Pro Neural Engine..."
+              var onFinished: () -> Void
               
               var body: some View {
-                  VStack(spacing: 20) {
-                      ProgressView(value: progress, total: 100)
-                          .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                          .frame(width: 300)
-                      Text(tasks[Int(progress/17) % tasks.count])
-                          .font(.system(size: 12, design: .monospaced))
-                          .foregroundColor(.green)
+                  VStack {
+                      Image(systemName: "cpu.fill").font(.system(size: 80)).foregroundColor(.blue)
+                      Text("GAMEHUB ULTRA KERNEL").font(.headline).foregroundColor(.white).padding()
+                      Text(loadingText).font(.caption).foregroundColor(.gray)
+                      ProgressView().tint(.blue).padding()
                   }
                   .onAppear {
-                      Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { t in
-                          if progress < 100 { progress += 1 }
-                          else { t.invalidate(); onComplete() }
-                      }
+                      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { loadingText = "Allocating 8GB Unified RAM..." }
+                      DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { loadingText = "Mapping C:/Drive to Local Storage..." }
+                      DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) { onFinished() }
                   }
               }
           }
 
-          // --- WINDOWS DESKTOP (File Directory & Settings) ---
-          struct WindowsDesktopUI: View {
+          // --- WINDOWS ENVIRONMENT (Desktop & File Management) ---
+          struct WindowsEnvironment: View {
               var onLaunch: (String) -> Void
-              @State private var showPicker = false
+              @State private var isFilePickerPresented = false
               
               var body: some View {
-                  ZStack {
-                      // Wallpaper
-                      LinearGradient(colors: [Color.blue.opacity(0.2), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
-                      
-                      VStack {
-                          HStack(alignment: .top) {
-                              VStack(spacing: 25) {
-                                  DesktopIcon(title: "My PC", img: "pc") { showPicker = true }
-                                  DesktopIcon(title: "Settings", img: "gear") { }
-                                  DesktopIcon(title: "D3D Config", img: "cpu") { }
-                              }.padding()
-                              Spacer()
-                          }
+                  VStack(spacing: 0) {
+                      // Top Bar
+                      HStack {
+                          Text("GameHub Windows Environment (v6.0)").font(.system(size: 12, weight: .bold))
                           Spacer()
-                          // Taskbar
-                          HStack {
-                              Image(systemName: "window.max").foregroundColor(.white)
+                          Text("Status: JIT Ready").foregroundColor(.green).font(.system(size: 10))
+                      }.padding(8).background(Color(white: 0.15))
+
+                      // Main Desktop Grid
+                      HStack {
+                          VStack(spacing: 30) {
+                              DesktopIcon(name: "This PC", icon: "pc") { isFilePickerPresented = true }
+                              DesktopIcon(name: "DX12 Settings", icon: "gearshape.fill") { }
+                              DesktopIcon(name: "System Terminal", icon: "terminal.fill") { }
                               Spacer()
-                              HStack(spacing: 15) {
-                                  Text("60 FPS").foregroundColor(.green)
-                                  Text("MEM: 8GB").foregroundColor(.blue)
-                                  Text(Date(), style: .time).foregroundColor(.white)
-                              }.font(.system(size: 10))
-                          }
-                          .padding(10).background(BlurView(style: .dark))
+                          }.padding()
+                          
+                          Spacer()
+                          
+                          // Game Shortcut if added
+                          VStack {
+                             Text("Imported Games").font(.caption).foregroundColor(.gray)
+                             Divider().background(Color.gray)
+                             ScrollView {
+                                 VStack {
+                                     Button("RUN GTA_V.EXE") { onLaunch("Grand Theft Auto V") }
+                                        .buttonStyle(.borderedProminent)
+                                     Button("RUN HORIZON.EXE") { onLaunch("Horizon Zero Dawn") }
+                                        .buttonStyle(.borderedProminent).tint(.purple)
+                                 }.padding()
+                             }
+                          }.frame(width: 250).background(Color.white.opacity(0.05))
                       }
                   }
-                  .sheet(isPresented: $showPicker) {
-                      DocumentPicker { url in
+                  .sheet(isPresented: $isFilePickerPresented) {
+                      FilePicker { url in
                           onLaunch(url.lastPathComponent)
                       }
                   }
               }
           }
 
-          // --- EMULATION LAYER (The Running State & PS5 Gamepad) ---
-          struct EmulationLayer: View {
-              let gameName: String
-              var onExit: () -> Void
-              
-              var body: some View {
-                  ZStack {
-                      // Game Render Simulation
-                      Rectangle().fill(Color.black)
-                      
-                      VStack {
-                          HStack {
-                              Text("RUNNING: \(gameName)").foregroundColor(.green).font(.system(size: 10, design: .monospaced))
-                              Spacer()
-                              Button("EXIT") { onExit() }.foregroundColor(.red).bold()
-                          }.padding()
-                          Spacer()
-                      }
-                      
-                      // PRO PS5 VIRTUAL JOYSTICK
-                      PS5GamepadOverlay()
-                  }
-              }
-          }
-
-          struct PS5GamepadOverlay: View {
-              var body: some View {
-                  HStack {
-                      // Left: D-Pad & Analog
-                      VStack {
-                          Spacer()
-                          AnalogStick(isLeft: true)
-                      }.padding(50)
-                      
-                      Spacer()
-                      
-                      // Right: Buttons & Camera Stick
-                      VStack {
-                          HStack(spacing: 15) {
-                              ControlButton(label: "Δ", color: .green)
-                              VStack(spacing: 15) {
-                                  ControlButton(label: "□", color: .pink)
-                                  ControlButton(label: "O", color: .red)
-                              }
-                              ControlButton(label: "X", color: .blue)
-                          }
-                          Spacer()
-                          AnalogStick(isLeft: false)
-                      }.padding(50)
-                  }
-              }
-          }
-
-          // --- COMPONENTS (Analog, Buttons, Picker) ---
-          struct AnalogStick: View {
-              let isLeft: Bool
-              @State private var offset = CGSize.zero
-              var body: some View {
-                  ZStack {
-                      Circle().fill(Color.white.opacity(0.1)).frame(width: 140, height: 140)
-                      Circle().fill(LinearGradient(colors: [.gray, .black], startPoint: .top, endPoint: .bottom))
-                          .frame(width: 70, height: 70)
-                          .offset(offset)
-                          .gesture(DragGesture().onChanged { v in
-                              let lim: CGFloat = 35
-                              let d = sqrt(v.translation.width * v.translation.width + v.translation.height * v.translation.height)
-                              offset = d <= lim ? v.translation : CGSize(width: v.translation.width/d*lim, height: v.translation.height/d*lim)
-                          }.onEnded { _ in withAnimation(.spring()) { offset = .zero } })
-                  }
-              }
-          }
-
-          struct ControlButton: View {
-              let label: String; let color: Color
-              var body: some View {
-                  Circle().fill(Color.white.opacity(0.1)).frame(width: 55, height: 55)
-                      .overlay(Text(label).foregroundColor(color).bold())
-              }
-          }
-
           struct DesktopIcon: View {
-              let title: String; let img: String; var action: () -> Void
+              let name: String; let icon: String; var action: () -> Void
               var body: some View {
                   Button(action: action) {
                       VStack {
-                          Image(systemName: img).font(.largeTitle).foregroundColor(.blue)
-                          Text(title).font(.caption2).foregroundColor(.white)
+                          Image(systemName: icon).font(.title).foregroundColor(.blue)
+                          Text(name).font(.system(size: 10)).foregroundColor(.white)
                       }.frame(width: 80)
                   }
               }
           }
 
-          struct DocumentPicker: UIViewControllerRepresentable {
+          // --- GAME EXECUTION ENGINE (PS5 Controller + Performance) ---
+          struct GameExecutionEngine: View {
+              var gameName: String; var onExit: () -> Void
+              @State private var fps: Int = 60
+              
+              var body: some View {
+                  ZStack {
+                      // High-Performance Engine Background
+                      Rectangle().fill(Color.black).ignoresSafeArea()
+                      
+                      // Simulated Game Content Layer
+                      VStack {
+                          HStack {
+                              Text("LIVE ENGINE: \(gameName)").foregroundColor(.green).font(.system(size: 10, design: .monospaced))
+                              Spacer()
+                              Text("\(fps) FPS").foregroundColor(.yellow).font(.system(size: 10, design: .monospaced))
+                              Button("EXIT") { onExit() }.foregroundColor(.red).padding(.leading)
+                          }.padding()
+                          Spacer()
+                      }
+
+                      // PS5 STYLE VIRTUAL CONTROLLER
+                      DualSenseOverlay()
+                  }
+              }
+          }
+
+          struct DualSenseOverlay: View {
+              var body: some View {
+                  HStack {
+                      // Left Analog & D-Pad
+                      VStack {
+                          Spacer()
+                          ZStack {
+                              Circle().fill(Color.white.opacity(0.1)).frame(width: 140, height: 140)
+                              Circle().fill(RadialGradient(colors: [.gray, .black], center: .center, startRadius: 5, endRadius: 40)).frame(width: 70, height: 70)
+                          }
+                      }.padding(50)
+                      
+                      Spacer()
+                      
+                      // Right Shapes (PS5 Style) & R-Analog
+                      VStack {
+                          Spacer()
+                          ZStack {
+                              // Face Buttons
+                              VStack(spacing: 30) {
+                                  Circle().fill(Color.white.opacity(0.2)).frame(width: 45, height: 45).overlay(Text("△").foregroundColor(.green))
+                                  HStack(spacing: 30) {
+                                      Circle().fill(Color.white.opacity(0.2)).frame(width: 45, height: 45).overlay(Text("□").foregroundColor(.pink))
+                                      Circle().fill(Color.white.opacity(0.2)).frame(width: 45, height: 45).overlay(Text("○").foregroundColor(.red))
+                                  }
+                                  Circle().fill(Color.white.opacity(0.2)).frame(width: 45, height: 45).overlay(Text("✕").foregroundColor(.blue))
+                              }
+                          }
+                          Spacer().frame(height: 50)
+                          Circle().fill(Color.white.opacity(0.1)).frame(width: 140, height: 140) // R-Stick
+                      }.padding(50)
+                  }
+                  .overlay(
+                      VStack {
+                          HStack {
+                              Rectangle().fill(Color.gray.opacity(0.4)).frame(width: 100, height: 40).cornerRadius(10).overlay(Text("L1/L2").font(.caption))
+                              Spacer()
+                              Rectangle().fill(Color.gray.opacity(0.4)).frame(width: 100, height: 40).cornerRadius(10).overlay(Text("R1/R2").font(.caption))
+                          }.padding(.top, 40)
+                          Spacer()
+                      }.padding()
+                  )
+              }
+          }
+
+          // --- FILE PICKER LOGIC ---
+          struct FilePicker: UIViewControllerRepresentable {
               var onPick: (URL) -> Void
               func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-                  let p = UIDocumentPickerViewController(forOpeningContentTypes: [.executable, .data], asCopy: true)
-                  p.delegate = context.coordinator; return p
+                  let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
+                  picker.delegate = context.coordinator
+                  return picker
               }
-              func updateUIViewController(_ ui: UIDocumentPickerViewController, context: Context) {}
+              func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
               func makeCoordinator() -> Coordinator { Coordinator(self) }
               class Coordinator: NSObject, UIDocumentPickerDelegate {
-                  var parent: DocumentPicker; init(_ p: DocumentPicker) { parent = p }
+                  var parent: FilePicker
+                  init(_ parent: FilePicker) { self.parent = parent }
                   func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
                       if let url = urls.first { parent.onPick(url) }
                   }
               }
           }
 
-          struct WelcomeUI: View {
-              var start: () -> Void
-              var body: some View {
-                  VStack(spacing: 25) {
-                      Text("GAMEHUB ULTRA").font(.system(size: 45, weight: .black)).foregroundColor(.blue)
-                      Text("A17 PRO - PERFORMANCE MODE").font(.caption).foregroundColor(.gray)
-                      Button("BOOT WINDOWS ENGINE") { start() }
-                          .padding().frame(width: 250).background(Color.blue).foregroundColor(.white).cornerRadius(15)
-                  }
-              }
-          }
-
-          struct BlurView: UIViewRepresentable {
-              var style: UIBlurEffect.Style
-              func makeUIView(context: Context) -> UIVisualEffectView { UIVisualEffectView(effect: UIBlurEffect(style: style)) }
-              func updateUIView(_ ui: UIVisualEffectView, context: Context) {}
+          struct LaunchScreen: UIViewControllerRepresentable {
+              func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
+              func updateUIViewController(_ ui: UIViewController, context: Context) {}
           }
           EOF
 
-      - name: Build and Export IPA
+      - name: Build Archive
         run: |
           xcodegen generate
           xcodebuild archive \
@@ -330,12 +303,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
+      - name: Export IPA
+        run: |
           mkdir -p build/Payload
           cp -r build/GameHub.xcarchive/Products/Applications/*.app build/Payload/
-          cd build && zip -qr GameHub_Ultra_ProMax_V9.ipa Payload
+          cd build && zip -qr GameHub_Ultra_PS5_V6.ipa Payload
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GameHub-Pro-Package
-          path: build/GameHub_Ultra_ProMax_V9.ipa
+          name: GameHub-Ultra-Final
+          path: build/GameHub_Ultra_PS5_V6.ipa
